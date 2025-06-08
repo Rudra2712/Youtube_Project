@@ -1,12 +1,8 @@
 import asyncHandler from "../utils/asyncHandler.js";
-import ApiError from "../utils/ApiError.js";
-import User from "../models/user.model.js";
+import { ApiError } from "../utils/ApiError.js";
+import { User } from "../models/user.models.js";
 import { uploadOnCloudinary } from "../utils/cloudinery.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-
-
-
-
 
 const registerUser = asyncHandler(async (req, res) => {
     //STEPS
@@ -22,7 +18,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     // 1. Get user details from Tailwind
     const { fullName, email, username, password } = req.body
-    console.log("Email:", email);
+    // console.log("Email:", email); //checks   
 
     // 2. Validation
     if (
@@ -40,13 +36,23 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(409, "Username or email already exists");
     }
 
+    // console.log("User does not exist, proceeding with registration...");    //checks
+
     // 4. Check for images, check for avatar
     const avatarLocalPath = req.files?.avatar?.[0]?.path;
     const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
 
+    // let coverImageLocalPath ;
+    // if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+    //     coverImageLocalPath = req.files.coverImage[0].path;
+    // } 
+
+
     if (!avatarLocalPath) {
         throw new ApiError(400, "Avatar file is required");
     }
+
+    // console.log("Avatar local path:", avatarLocalPath);   //checks
 
     // 5. Upload images to Cloudinary (avatar and coverImage)
     const avatar = await uploadOnCloudinary(avatarLocalPath);
@@ -55,6 +61,8 @@ const registerUser = asyncHandler(async (req, res) => {
     if (!avatar) {
         throw new ApiError(400, "Avatar upload failed");
     }
+
+    // console.log("Avatar uploaded successfully:", avatar.url); //checks
 
     // 6. Create user object - create entry in database
     const user = await User.create({
@@ -80,8 +88,6 @@ const registerUser = asyncHandler(async (req, res) => {
     return res.status(201).json(
         new ApiResponse(200, createdUser, "User registered successfully")
     );
-
-
 
 });
 
