@@ -1,14 +1,14 @@
 //tu he kee nahiiii
 
-import {ApiError}  from "../utils/ApiError.js";
+import { ApiError } from "../utils/ApiError.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken";
-import  {User}  from "../models/user.models.js";
+import { User } from "../models/user.models.js";
 
 export const verifyJWT = asyncHandler(async (req, res, next) => {
-    try {        
+    try {
+
         const token = req.cookies?.accessToken || req.headers["authorization"]?.replace("Bearer ", "");
-        
 
         if (!token) {
             throw new ApiError(401, "Unauthorized request, no token provided");
@@ -23,6 +23,7 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
             }
             req.user = user;
             next();
+
         } catch (jwtError) {
             console.error("JWT verification error:", jwtError);
             throw new ApiError(401, "Invalid token format or signature");
