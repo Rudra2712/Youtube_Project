@@ -6,6 +6,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import e from "express";
 import mongoose from "mongoose";
+import fs from "fs";
 
 const generateAccessAndRefreshTokens = async (userId) => {
     try {
@@ -196,7 +197,8 @@ const logoutUser = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, {}, "User logged out successfully"));
 })
 
-const refreshAccessToken = asyncHandler(async (req, res) => {
+const refreshAccessToken = asyncHandler(async (req, res) => { //refresh token is used to generate a new access token
+    
     const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
     if (!incomingRefreshToken) {
         throw new ApiError(401, "Unauthorized request, no refresh token provided");
@@ -296,29 +298,35 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     if (!avatarLocalPath) {
         throw new ApiError(400, "Avatar file is required");
     }
-    const avatar = await uploadOnCloudinary(avatarLocalPath);
-    if (!avatar.url) {
-        throw new ApiError(400, "Error while uploading avatar");
+    
+    try {
+        const avatar = await uploadOnCloudinary(avatarLocalPath);
+        if (!avatar.url) {
+            throw new ApiError(400, "Error while uploading avatar");
+        }
+
+        const user = await User.findByIdAndUpdate(
+            req.user?._id,
+            {
+                $set: {
+                    avatar: avatar.url
+                }
+            },
+            { new: true }
+        ).select("-password");
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(200, user, "Avatar updated successfully")
+            );
+    } catch (error) {
+        // Delete the local file if upload fails
+        if (avatarLocalPath && fs.existsSync(avatarLocalPath)) {
+            fs.unlinkSync(avatarLocalPath);
+        }
+        throw error;
     }
-
-    const user = await User.findByIdAndUpdate(
-        req.user?._id,
-        {
-            $set: {
-                avatar: avatar.url
-            }
-        },
-        { new: true }
-    ).select("-password");
-
-    //Deletet the local file after upload
-
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(200, user, "Avatar updated successfully")
-        );
-
 })
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
@@ -328,28 +336,34 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Cover image file is required");
     }
 
-    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
-    if (!coverImage.url) {
-        throw new ApiError(400, "Error while uploading cover image");
+    try {
+        const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+        if (!coverImage.url) {
+            throw new ApiError(400, "Error while uploading cover image");
+        }
+
+        const user = await User.findByIdAndUpdate(
+            req.user?._id,
+            {
+                $set: {
+                    coverImage: coverImage.url
+                }
+            },
+            { new: true }
+        ).select("-password");
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(200, user, "Cover image updated successfully")
+            );
+    } catch (error) {
+        // Delete the local file if upload fails
+        if (coverImageLocalPath && fs.existsSync(coverImageLocalPath)) {
+            fs.unlinkSync(coverImageLocalPath);
+        }
+        throw error;
     }
-
-    const user = await User.findByIdAndUpdate(
-        req.user?._id,
-        {
-            $set: {
-                coverImage: coverImage.url
-            }
-        },
-        { new: true }
-    ).select("-password");
-
-    //Delete the local file after upload
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(200, user, "Cover image updated successfully")
-        );
-
 })
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
@@ -358,6 +372,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     if (!username?.trim()) {
         throw new ApiError(400, "Username is required");
     }
+
     const channel = await User.aggregate([
         {
             $match: { //matching the users
@@ -410,6 +425,8 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
             }
         }
     ])
+
+
 
     if (!channel?.length) {
         throw new ApiError(404, "Channel not found");
